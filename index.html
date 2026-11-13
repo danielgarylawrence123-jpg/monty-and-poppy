@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monty & Poppy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one arcade cabinet. HUD strip, pixel scene, RPG text box, then a gamepad. Single dark arcade theme by choice. */
+:root{
+  color-scheme: dark;
+  --ink:#0d1020;
+  --panel:#141a33;
+  --line:#3a4470;
+  --cream:#f4ecd8;
+  --navy:#1F3A5F;
+  --gold:#e8b84a;
+  --poppy:#C4501F;
+  --green:#3f8f4f;
+  --display:"Press Start 2P","Courier New",monospace;
+  --body:"VT323","Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--ink);color:var(--cream);font-family:var(--body);font-size:20px}
+.wrap{max-width:672px;margin:0 auto;padding:12px 16px 28px;display:flex;flex-direction:column;gap:12px}
+.cab{border:4px solid #000;box-shadow:0 0 0 4px var(--line);background:#000}
+.hud{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:7px 8px;background:var(--panel);font-family:var(--display);font-size:clamp(7px,1.7vw,10px)}
+#hZone{color:var(--gold)}
+.hbtns{display:flex;gap:6px}
+button{font-family:var(--display);cursor:pointer;color:#10162c;background:var(--gold);border:3px solid #000;box-shadow:2px 2px 0 #000;padding:8px 10px;font-size:clamp(8px,1.8vw,11px);line-height:1.3}
+button:focus-visible,a:focus-visible{outline:3px solid #fff;outline-offset:2px}
+button:active{transform:translate(2px,2px);box-shadow:none}
+.hud button{padding:5px 7px;font-size:clamp(7px,1.6vw,9px);background:var(--panel);color:var(--cream);border-color:var(--line)}
+.stage{position:relative;aspect-ratio:256/240;background:#000;overflow:hidden}
+#cv{touch-action:none;display:block;width:100%;height:76.667%;image-rendering:pixelated;image-rendering:crisp-edges}
+.textbox{position:absolute;left:0;right:0;bottom:0;height:23.333%;background:#0a0d1c;border-top:4px solid var(--gold);display:flex;gap:10px;padding:6px 8px;align-items:flex-start}
+#pc{height:70%;aspect-ratio:1;image-rendering:pixelated;border:2px solid var(--line);flex:none;align-self:center}
+.ptext{flex:1;min-width:0;font-size:clamp(14px,3.5vw,22px);line-height:1;overflow:hidden;height:100%}
+#pWho{display:block;font-family:var(--display);font-weight:400;font-size:clamp(7px,1.6vw,10px);color:var(--gold);margin-bottom:3px}
+#pMore{font-family:var(--display);font-style:normal;font-size:clamp(7px,1.5vw,9px);color:var(--gold);margin-left:6px;animation:blink 1s steps(2) infinite}
+.ov{position:absolute;inset:0;background:rgba(8,10,25,.9);overflow-y:auto;display:grid;place-items:center;padding:10px}
+.ov[hidden]{display:none}
+.ov.see{background:rgba(8,10,25,.55)}
+.dlg{width:min(100%,520px);display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;font-size:clamp(15px,3.6vw,21px);line-height:1.05}
+.dlg.box{background:var(--cream);color:#10162c;border:4px solid #000;box-shadow:0 0 0 4px var(--gold);padding:12px}
+.dlg h2,.dlg h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;line-height:1.5}
+.dlg h2{font-size:clamp(13px,4vw,24px);color:var(--gold);text-shadow:3px 3px 0 #000}
+.dlg h3{font-size:clamp(9px,2.4vw,13px)}
+.dlg p{margin:0}
+.dlg ul{margin:0;padding:0;list-style:none;text-align:left;display:flex;flex-direction:column;gap:5px;width:100%}
+.dlg li{padding-left:14px;position:relative}
+.dlg li::before{content:"";position:absolute;left:0;top:.35em;width:7px;height:7px;background:var(--poppy)}
+.dlg li b{font-family:var(--display);font-weight:400;font-size:.5em;display:block;color:var(--navy);margin-bottom:2px}
+.small{font-size:.8em;opacity:.85}
+.dlg input{font-family:var(--display);font-size:clamp(10px,2.6vw,14px);padding:8px;width:min(100%,240px);text-align:center;text-transform:uppercase;background:#fff;color:#10162c;border:3px solid #000}
+.hs{list-style:none;margin:0;padding:0;width:min(100%,320px);font-family:var(--display);font-size:clamp(8px,2vw,11px);display:flex;flex-direction:column;gap:6px;font-variant-numeric:tabular-nums}
+.hs li{display:flex;justify-content:space-between;gap:10px;padding:4px 6px;background:var(--panel)}
+.hs li.me{background:var(--gold);color:#10162c}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.blink{animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+.mapgrid{display:flex;flex-direction:column;gap:8px;width:100%}
+.maprow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center}
+.maprow span{font-family:var(--display);font-size:clamp(7px,1.7vw,10px);width:100%;color:var(--gold)}
+.maprow button{font-size:clamp(7px,1.6vw,9px);padding:6px 7px}
+.maprow button.m{background:#9db7dd}.maprow button.p{background:#f0a184}.maprow button.ok{background:#7be08a}
+a.btn{font-family:var(--display);font-size:clamp(8px,1.8vw,11px);color:#10162c;background:#9db7dd;border:3px solid #000;box-shadow:2px 2px 0 #000;padding:8px 10px;text-decoration:none;line-height:1.3}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%}
+.stats div{background:var(--panel);color:var(--cream);border:2px solid #000;padding:6px 2px;font-size:.8em}
+.stats b{display:block;font-family:var(--display);font-weight:400;color:var(--gold);font-size:clamp(10px,3vw,18px);margin-bottom:3px;font-variant-numeric:tabular-nums}
+.strip{display:flex;gap:3px;padding:5px 6px;background:#0a0d1c;border-bottom:2px solid #000}
+.chip{flex:1;min-width:0;text-align:center;font-family:var(--display);font-size:clamp(7px,1.7vw,10px);padding:4px 0 3px;background:#2a3157;color:#aab1d0;border:2px solid #000;overflow:hidden}
+.chip small{display:block;font-family:var(--body);font-size:10px;line-height:1;margin-top:2px}
+.chip.gap{margin-left:8px}
+.chip.done{background:#7be08a;color:#10162c}
+.chip.now{background:var(--gold);color:#10162c}
+@media (max-width:520px){.chip small{display:none}}
+.pad{display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--panel);border-top:4px solid #000;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad div{display:flex;gap:10px}
+.pad button{width:54px;height:54px;padding:0;font-size:14px;background:#2a3157;color:var(--cream);border-color:#000}
+.pad #kA{background:var(--poppy);color:#fff;border-radius:50%}
+.pad #kB{background:var(--navy);color:#fff;border-radius:50%;font-size:10px}
+.help{margin:0;color:#aab1d0;text-align:center;font-size:18px}
+@media (prefers-reduced-motion:reduce){.blink,#pMore{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cab">
+    <div class="hud">
+      <span id="hZone">THE OFFICE</span>
+      <span id="hCount"></span>
+      <span id="hScore">SCORE 000000</span>
+      <span class="hbtns"><button id="bMap" type="button">MAP</button><button id="bSnd" type="button">SOUND ON</button></span>
+    </div>
+    <div class="strip" id="strip" aria-label="Pipeline progress"></div>
+    <div class="stage">
+      <canvas id="cv" width="256" height="184" aria-label="Pixel office action scene. The text box below describes what is happening."></canvas>
+      <div class="textbox" aria-live="polite">
+        <canvas id="pc" width="20" height="20" aria-hidden="true"></canvas>
+        <div class="ptext"><b id="pWho"></b><span id="pTxt"></span><i id="pMore" hidden>A</i></div>
+      </div>
+      <div class="ov" id="ov" hidden></div>
+    </div>
+    <div class="pad">
+      <div><button id="kL" type="button" aria-label="Move left">&#9664;</button><button id="kR" type="button" aria-label="Move right">&#9654;</button></div>
+      <div><button id="kB" type="button" aria-label="B, open the map">B</button><button id="kA" type="button" aria-label="A, action">A</button></div>
+    </div>
+  </div>
+  <p class="help">Arrow keys or A and D to move. Space or Enter to act. Esc for the map. You can also swipe or tap the screen in some rooms.</p>
+</div>
+
+<script>
+/* ============================================================
+   MONTY & POPPY: an office action explainer. Original art,
+   original music. All numbers below come from Daniel's spec.
+============================================================ */
+const STATS = { screened: 371, evals: 120, apps: 52, interviews: 4 };
+const LINKEDIN = "https://www.linkedin.com/in/danielglaw";
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), pcv = $("pc"), ov = $("ov");
+let ctx = cv.getContext("2d"); const mainCtx = ctx, pctx = pcv.getContext("2d");
+const W = 256, FY = 174, F = "8px 'Press Start 2P', monospace";
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const NAVY = "#1F3A5F", GOLD = "#e8b84a", CREAM = "#f4ecd8", RED = "#C4501F", GREEN = "#3f8f4f", BAD = "#ff8a7a", GOOD = "#7be08a", DARK = "#141a33";
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function R(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
+function txt(s, x, y, col, al) {
+  ctx.font = F; ctx.textAlign = al || "left"; ctx.textBaseline = "top";
+  ctx.fillStyle = "#000"; ctx.fillText(s, Math.round(x) + 1, Math.round(y) + 1);
+  ctx.fillStyle = col || "#fff"; ctx.fillText(s, Math.round(x), Math.round(y));
+}
+function tag(s, x, y, col, bg) {
+  const w = s.length * 8; x = Math.round(clamp(x, w / 2 + 3, W - w / 2 - 3)); y = Math.round(y);
+  R(x - w / 2 - 2, y - 2, w + 4, 11, bg || DARK);
+  ctx.font = F; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = col || "#fff"; ctx.fillText(s, x, y);
+}
+
+/* ---------------- audio: chiptune loop plus effects ---------------- */
+let ac = null, master = null, soundOn = true, musT = 0, musStep = 0, nbuf = null;
+const mf = n => 440 * Math.pow(2, (n - 69) / 12);
+const LEAD = [76,0,79,0,83,0,79,76, 74,0,76,0,71,0,0,71, 72,0,76,0,79,0,76,72, 74,0,78,0,81,0,78,74];
+function toneAt(type, f, t, d, v, f2) {
+  if (!ac) return;
+  try {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.02);
+  } catch (e) {}
+}
+function noiseAt(t, d, v) {
+  if (!ac || !nbuf) return;
+  try {
+    const s = ac.createBufferSource(), g = ac.createGain(); s.buffer = nbuf;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+    s.connect(g); g.connect(master); s.start(t); s.stop(t + d + 0.02);
+  } catch (e) {}
+}
+const tone = (type, f, delay, d, v, f2) => ac && toneAt(type, f, ac.currentTime + delay, d, v, f2);
+function sched() {
+  if (!ac || ac.state !== "running") return;
+  if (musT < ac.currentTime) musT = ac.currentTime + 0.05;
+  while (musT < ac.currentTime + 0.2) {
+    const s = musStep % 32, hi = (musStep % 64) >= 32;
+    const root = [40, 40, 36, 38][s >> 3], bp = [0, -1, 0, 12, -1, 0, 12, 0][s & 7];
+    if (bp >= 0) toneAt("triangle", mf(root + bp), musT, 0.1, 0.16);
+    if (LEAD[s]) toneAt("square", mf(LEAD[s] + (hi ? 12 : 0)), musT, 0.1, 0.03);
+    if ((s & 7) === 0 || (s & 7) === 3) toneAt("sine", 130, musT, 0.09, 0.22, 40);
+    if ((s & 7) === 4) noiseAt(musT, 0.08, 0.07); else if (!(s & 1)) noiseAt(musT, 0.02, 0.02);
+    musT += 0.107; musStep++;
+  }
+}
+function initAudio() {
+  try {
+    if (!ac) {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = soundOn ? 1 : 0; master.connect(ac.destination);
+      nbuf = ac.createBuffer(1, 4410, 44100); const d = nbuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      setInterval(sched, 40);
+    }
+    if (ac.state === "suspended") ac.resume();
+  } catch (e) { ac = null; }
+}
+const sfx = {
+  shoot() { tone("square", 900, 0, 0.09, 0.05, 200); },
+  coin() { tone("square", 988, 0, 0.07, 0.05); tone("square", 1319, 0.07, 0.14, 0.05); },
+  buzz() { tone("sawtooth", 120, 0, 0.25, 0.07, 80); },
+  thud() { tone("square", 140, 0, 0.1, 0.09, 50); noiseAt(ac ? ac.currentTime : 0, 0.06, 0.08); },
+  blip() { tone("square", 660, 0, 0.05, 0.04); },
+  rep() { tone("square", 220, 0, 0.09, 0.05, 440); },
+  bell() { [0, 0.18].forEach(d => { tone("sine", 2093, d, 0.25, 0.06); tone("sine", 1568, d, 0.25, 0.04); }); },
+  church() { [0, 0.7].forEach(d => { tone("sine", 196, d, 1.2, 0.2); tone("sine", 392, d, 1.0, 0.09); tone("sine", 587, d, 0.8, 0.04); }); },
+  win() { [523, 659, 784, 1047].forEach((f, i) => tone("square", f, i * 0.08, 0.1, 0.05)); }
+};
+
+/* ---------------- people (original pixel characters) ---------------- */
+const LOOK = {
+  monty: { skin: "#f0c090", coat: NAVY, shirt: CREAM, legs: "#16263f", shoe: "#000", hair: "#3a2a1a" },
+  poppy: { skin: "#b97a50", coat: GREEN, shirt: "#fff", legs: "#2c5e36", shoe: "#3a2a1a", hair: "#2a1a12" },
+  daniel: { skin: "#8a5a3a", coat: "#2a7f9e", shirt: CREAM, legs: "#333a55", shoe: "#111", hair: "#1a1210" }
+};
+let T = 0;
+function person(k, x, fy, pose, dir, a) {
+  const L = LOOK[k]; x = Math.round(x); fy = Math.round(fy); a = a || 0;
+  const ph = Math.floor(T / 130) % 2, fx = dir >= 0 ? 1 : -1;
+  if (pose === "sleep") {
+    R(x - 11, fy - 5, 15, 5, L.coat); R(x - 11, fy - 2, 4, 2, L.legs);
+    R(x + 4, fy - 8, 7, 7, L.skin); R(x + 6, fy - 5, 2, 1, "#000"); R(x + 9, fy - 5, 1, 1, "#000");
+    R(x + 4, fy - 9, 7, 2, L.hair); return;
+  }
+  const jump = pose === "jack" && ph;
+  let o = 0; if (jump) o = -3; if (pose === "lift") o = a > 0.35 ? -1 : 1; if (pose === "bike") o = -3;
+  const ly = fy + (jump ? -3 : 0);
+  if (pose === "bike") { const q = a > 0 ? Math.floor(T / 80) % 2 : 0; R(x - 3, fy - 9, 3, q ? 7 : 5, L.legs); R(x + 1, fy - 9, 3, q ? 5 : 7, L.legs); }
+  else if (pose === "walk") {
+    R(x - 4, ly - 6, 3, ph ? 5 : 6, L.legs); R(x + 1, ly - 6, 3, ph ? 6 : 5, L.legs);
+    R(x - 4 + (fx > 0 ? 0 : -1), ly - (ph ? 2 : 1), 4, 1, L.shoe); R(x + 1 + (fx > 0 ? 0 : -1), ly - (ph ? 1 : 2), 4, 1, L.shoe);
+  } else if (jump) { R(x - 6, ly - 6, 3, 6, L.legs); R(x + 3, ly - 6, 3, 6, L.legs); }
+  else { R(x - 4, ly - 6, 3, 6, L.legs); R(x + 1, ly - 6, 3, 6, L.legs); R(x - 4, ly - 1, 3, 1, L.shoe); R(x + 1, ly - 1, 3, 1, L.shoe); }
+  const ty = fy - 15 + o;
+  R(x - 5, ty, 10, 9, L.coat);
+  if (k === "monty") { R(x - 1, ty, 2, 9, L.shirt); R(x - 1, ty + 3, 1, 1, GOLD); R(x - 1, ty + 6, 1, 1, GOLD); R(x + 2, ty + 5, 2, 1, GOLD); }
+  if (k === "poppy") { R(x - 5, ty + 8, 10, 1, "#fff"); for (let i = 0; i < 6; i++) R(x - 3 + i, ty + 1 + i, 1, 1, "#7a4e30"); R(x + 2, ty + 6, 5, 5, "#7a4e30"); R(x + 3, ty + 5, 3, 1, "#fff"); }
+  if (k === "daniel") R(x - 1, ty, 2, 3, L.shirt);
+  const arm = sx => { R(x + sx, ty, 2, 7, L.coat); R(x + sx, ty + 7, 2, 1, L.skin); };
+  if (pose === "shoot") { arm(fx > 0 ? -7 : 5); R(x + (fx > 0 ? 5 : -7), ty - 8, 2, 9, L.coat); R(x + (fx > 0 ? 4 : -8), ty - 12, 4, 4, "#c8ccd8"); R(x + (fx > 0 ? 5 : -7), ty - 13, 2, 1, "#888"); }
+  else if (pose === "lift") { const yb = a > 0.35 ? ty - 12 : ty - 1; R(x - 13, yb, 26, 1, "#c8ccd8"); R(x - 15, yb - 3, 3, 7, "#222"); R(x + 12, yb - 3, 3, 7, "#222"); R(x - 7, yb, 2, ty - yb + 2, L.coat); R(x + 5, yb, 2, ty - yb + 2, L.coat); }
+  else if (jump) { R(x - 8, ty - 5, 2, 6, L.coat); R(x + 6, ty - 5, 2, 6, L.coat); }
+  else if (pose === "punch") { const e = a > 0.4 ? 4 : 0; arm(fx > 0 ? -7 : 5); R(fx > 0 ? x + 5 : x - 11 - e, ty + 2, 6 + e, 2, L.coat); R(fx > 0 ? x + 11 + e : x - 12 - e, ty + 2, 1, 2, L.skin); }
+  else if (pose === "carry") { R(fx > 0 ? x + 5 : x - 9, ty + 3, 4, 2, L.coat); R(fx > 0 ? x + 7 : x - 15, ty - 1, 8, 8, "#c99a62"); R(fx > 0 ? x + 10 : x - 12, ty + 2, 2, 2, "#c4201f"); }
+  else if (pose === "bike") { R(fx > 0 ? x + 5 : x - 11, ty + 2, 6, 2, L.coat); arm(fx > 0 ? -7 : 5); }
+  else { arm(-7); arm(5); }
+  const hy = ty - 7, e = dir === 0 ? 0 : fx;
+  R(x - 4, hy, 8, 7, L.skin); R(x - 2 + e, hy + 3, 1, 2, "#000"); R(x + 1 + e, hy + 3, 1, 2, "#000");
+  if (k === "monty") {
+    const ex = x + 1 + e;
+    R(ex - 1, hy + 2, 3, 1, GOLD); R(ex - 1, hy + 5, 3, 1, GOLD); R(ex - 1, hy + 2, 1, 4, GOLD); R(ex + 1, hy + 2, 1, 4, GOLD); R(ex, hy + 3, 1, 2, "#000");
+    R(x - 6, hy - 1, 12, 1, "#0d1626"); R(x - 4, hy - 7, 8, 6, "#16263f"); R(x - 4, hy - 3, 8, 1, GOLD);
+  }
+  if (k === "poppy") {
+    R(x - 4, hy - 2, 8, 3, RED); R(fx > 0 ? x + 2 : x - 6, hy, 4, 1, "#8f3414");
+    R(x - 1, hy - 5, 3, 3, "#e8402a"); R(x, hy - 4, 1, 1, "#111"); R(x + 2, hy - 3, 2, 1, GREEN);
+    const bx = fx > 0 ? x - 5 : x + 4; R(bx, hy + 1, 1, 6, L.hair); R(bx - fx, hy + 3, 1, 6, L.hair);
+  }
+  if (k === "daniel") { R(x - 4, hy - 1, 8, 2, L.hair); R(x - 4, hy, 1, 3, L.hair); R(x + 3, hy, 1, 3, L.hair); }
+}
+
+/* ---------------- shared scenery ---------------- */
+function room(zone, sign) {
+  const wall = zone === "m" ? "#e9dfc6" : zone === "p" ? "#f3ecdc" : "#9aa0ad";
+  const trim = zone === "m" ? NAVY : zone === "p" ? GREEN : "#5d6474";
+  R(0, 0, W, 150, wall);
+  for (let x = 8; x < W; x += 16) R(x, 3, 1, 115, "rgba(0,0,0,.05)");
+  for (let x = 24; x < W; x += 80) { R(x, 0, 40, 3, "#fff"); R(x, 3, 40, 1, "#cfd3df"); }
+  R(0, 118, W, 32, trim); R(0, 118, W, 2, zone === "p" ? "#fff" : GOLD);
+  R(0, 150, W, 34, "#4a4f66"); for (let x = 0; x < W; x += 32) R(x, 150, 1, 34, "#3e4359"); R(0, 166, W, 1, "#3e4359");
+  if (sign) { R(4, 4, sign.length * 8 + 8, 13, DARK); R(4, 16, sign.length * 8 + 8, 1, GOLD); txt(sign, 8, 7, GOLD); }
+}
+function danielDesk() {
+  person("daniel", 226, 166, "stand", -1);
+  R(204, 156, 46, 4, "#c08a55"); R(206, 160, 42, 14, "#8a5a3a"); R(206, 160, 42, 1, "#6b4429");
+  R(210, 148, 12, 8, "#c8ccd8"); R(212, 150, 8, 4, "#7ec8f0"); R(208, 156, 16, 1, "#888");
+  tag("DANIEL", 226, 126, CREAM);
+}
+function marker(x, y) { y = y || 132; const b = Math.floor(T / 250) % 2; R(x - 3, y + b, 7, 2, GOLD); R(x - 2, y + 2 + b, 5, 2, GOLD); R(x - 1, y + 4 + b, 3, 2, GOLD); }
+function signPlate(sign) { R(4, 4, sign.length * 8 + 8, 13, DARK); R(4, 16, sign.length * 8 + 8, 1, GOLD); txt(sign, 8, 7, GOLD); }
+function tagsWall(list, n, y0) {
+  list.forEach((s, i) => {
+    const x = (i % 2) ? 132 : 6, y = y0 + (i >> 1) * 13, on = i < n;
+    R(x, y - 2, s.length * 8 + 4, 11, on ? DARK : "rgba(20,26,51,.35)");
+    ctx.font = F; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillStyle = on ? GOOD : "#c9cede"; ctx.fillText(s, x + 2, y);
+  });
+}
+
+/* ---------------- effects ---------------- */
+let fx = [], shake = 0;
+function pop(s, x, y, c) { fx.push({ t: "txt", s, x, y, c, life: 1.2 }); }
+function confetti() {
+  if (RM) return;
+  const cols = [GOLD, RED, GOOD, "#7ec8f0", "#fff"];
+  for (let i = 0; i < 46; i++) fx.push({ t: "p", x: 128 + (Math.random() - .5) * 120, y: 40 + Math.random() * 20, vx: (Math.random() - .5) * 90, vy: -Math.random() * 90, g: 220, c: cols[i % 5], w: 2, h: 2, life: 1.6 });
+}
+
+/* ---------------- game state ---------------- */
+let mode = "title", prev = "title", stage = null, st = null, si = -1, cut = null;
+const done = new Array(10).fill(false), pts = new Array(10).fill(0);
+function total() { let t = 0; for (let i = 0; i < 10; i++) t += (st && !st.fin && i === si) ? st.pts : pts[i]; return t; }
+const pad6 = n => String(n).padStart(6, "0");
+function gain(n) { if (st && !st.fin) st.pts += n; }
+function hurt(msg) {
+  if (!st || st.fin) return;
+  st.hp--; sfx.buzz(); shake = 0.2; if (msg) st.msg = msg;
+  if (st.hp <= 0) fail("Out of hearts.");
+}
+function fail(why) {
+  if (!st || st.fin) return; st.fin = true; sfx.buzz();
+  ovShow('<div class="dlg box"><h3>ROOM FAILED</h3><p>' + why + '</p><div class="btnrow"><button type="button" data-p data-act="retry">TRY AGAIN</button><button type="button" data-act="skip">SKIP (0 POINTS)</button></div></div>',
+    { retry() { ovHide(); startStage(si, true); }, skip() { ovHide(); pts[si] = 0; done[si] = true; showRecap(si, advance); } });
+}
+const keys = { l: false, r: false };
+const P = { k: "monty", x: 40, dir: 1, walk: false, act: 0 };
+
+/* text box */
+let pan = { who: null, text: null }, dq = [], dcb = null, dFull = "", dN = 0;
+const NAMES = { monty: "MONTY", poppy: "POPPY", daniel: "DANIEL", sys: "" };
+function setPanel(who, text) {
+  if (pan.who !== who) {
+    pan.who = who; $("pWho").textContent = NAMES[who]; $("pWho").hidden = !NAMES[who];
+    ctx = pctx; R(0, 0, 20, 20, "#1b2440");
+    if (who === "sys") { R(8, 3, 4, 14, GOLD); R(3, 8, 14, 4, GOLD); R(8, 8, 4, 4, "#fff"); } else { const t = T; T = 0; person(who, 10, 33, "stand", 0); T = t; }
+    ctx = mainCtx;
+  }
+  if (pan.text !== text) { pan.text = text; $("pTxt").textContent = text; }
+}
+function talk(lines, cb) { dq = lines.slice(); dcb = cb; mode = "dialog"; nextLine(); }
+function nextLine() {
+  if (!dq.length) { const f = dcb; dcb = null; mode = "play"; $("pMore").hidden = true; if (f) f(); return; }
+  const l = dq.shift(); dFull = l[1]; dN = RM ? dFull.length : 0; pan.text = null; setPanel(l[0], ""); $("pMore").hidden = true;
+}
+
+/* overlays */
+let ovActs = {};
+function ovShow(html, acts, see) {
+  if (mode !== "ov") prev = mode; mode = "ov";
+  ov.className = "ov" + (see ? " see" : ""); ov.innerHTML = html; ov.hidden = false; ovActs = acts || {};
+  const p = ov.querySelector("[data-p]") || ov.querySelector("button,a"); if (p) p.focus({ preventScroll: true });
+}
+function ovHide() { ov.hidden = true; ov.innerHTML = ""; mode = prev; }
+ov.addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (b && ovActs[b.dataset.act]) ovActs[b.dataset.act](b); });
+const li = a => "<ul>" + a.map(s => "<li>" + s + "</li>").join("") + "</ul>";
+function showCard(title, lines, btn, cb) {
+  ovShow('<div class="dlg box"><h3>' + title + "</h3>" + li(lines) + '<button type="button" data-p data-act="ok">' + btn + "</button></div>", { ok() { ovHide(); if (cb) cb(); } });
+}
+
+/* ---------------- stage builders ---------------- */
+function finish() {
+  if (!st || st.fin) return; st.fin = true; done[si] = true; sfx.win();
+  pts[si] = st.pts + st.hp * 100 + (st.time != null ? Math.floor(st.time) * 10 : 0);
+  showRecap(si, advance);
+}
+const RECAP = [
+  ["M: MINE", "monty", "Right then, let's see what's on offer today.", "Monty gathers new analyst postings from job boards, career sites and links Daniel pastes in.", STATS.screened + " postings screened so far. Each one is logged, so no job is processed twice."],
+  ["O: OMIT", "monty", "Terribly sorry, this one requires citizenship. Into the bin it goes.", "A strict pass or fail gate removes jobs Daniel isn't eligible for, before any scoring.", "Fails: citizenship, clearance, no OPT, ITAR, no sponsorship ever. Fully remote and fake listings are skipped too."],
+  ["N: NUMBER", "monty", "Splendid. A 4.2. Shall I prepare the paperwork?", "Each surviving job is scored out of 5 on six weighted factors, with a written report.", "Fit 38%, Skills 23%, Experience 15%, then Market, Pay and Work arrangement at 8% each. Only 4.0 and up moves on. " + STATS.evals + " in depth evaluations so far."],
+  ["T: TAILOR", "monty", "Verified facts only. I never invent experience.", "Monty writes a tailored resume and a four paragraph cover letter for every job that passes.", "Each letter is checked for word count, dashes and overstated claims, then saved as a one page PDF."],
+  ["Y: YIELD", "daniel", "The agents do the work. I press submit.", "The finished job lands in the Ledger. Daniel reviews it and submits it himself.", STATS.apps + " applications and " + STATS.interviews + " interviews so far. The agents never submit anything."],
+  ["P: PROSPECT", "poppy", "Found someone who also went to FGCU. Lovely!", "Poppy finds recruiters and people with real common ground, using Vibe Prospecting and Crustdata.", "She only uses what people share publicly. Never a guess from a name or photo."],
+  ["O: ORGANISE", "poppy", "Already wrote to them last week, no double letters.", "Poppy removes anyone already contacted and drops the weak fits. Daniel approves the final list.", "First campaign: 58 recruiters found, 5 weak fits removed."],
+  ["P: PERSONALISE", "poppy", "Saved as a Gmail draft. I never press send.", "Poppy drafts a short, warm email around one true hook and one clear ask.", "90 to 140 words. A 15 minute call, or coffee if local. No visa questions. Recruiters get the resume."],
+  ["P: PACE", "daniel", "I review and send every one myself.", "Emails go out in daily batches of about 20, so Gmail doesn't flag them as spam.", "Day one: 28 personalised recruiter emails went out."],
+  ["Y: YIELD", "poppy", "They replied! I've packed you a prep brief.", "When someone replies, Poppy builds a prep brief: who they are, the shared connection, 5 questions and a suggested reply.", "Real outcome: a referral offer and an introduction to regional leadership."]
+];
+function showRecap(i, cb) {
+  const r = RECAP[i];
+  ovShow('<div class="dlg box"><h3>' + r[0] + ': WHAT JUST HAPPENED</h3><ul><li><b>WHAT THE AGENT DOES</b>' + r[3] + "</li><li><b>THE REAL DETAIL</b>" + r[4] + "</li></ul>" +
+    '<p class="small">' + NAMES[r[1]] + ': "' + r[2] + '"</p><p class="small">ROOM SCORE +' + pts[i] + '</p><button type="button" data-p data-act="ok">NEXT ROOM</button></div>',
+    { ok() { ovHide(); cb(); } });
+}
+function advance() {
+  if (done.every(Boolean)) { showEnd(); return; }
+  if (si === 4 && !done[5]) { showClock(() => startStage(5)); return; }
+  let n = (si + 1) % 10; while (done[n]) n = (n + 1) % 10; startStage(n);
+}
+function startStage(i, quick) {
+  si = i; stage = STAGES[i]; cut = null; fx = [];
+  P.k = i < 5 ? "monty" : "poppy"; P.x = 60; P.dir = 1; P.walk = false; keys.l = keys.r = false;
+  st = stage.init(); st.hp = 3; st.pts = 0;
+  $("hZone").textContent = stage.zone; $("hCount").textContent = "";
+  if (quick) { mode = "play"; $("pMore").hidden = true; } else talk(stage.intro, null);
+}
+
+function shootStage(c) {
+  return Object.assign({
+    move: true, min: 54, max: 244,
+    init() { P.x = 128; return { n: 0, live: [], sp: 0.5, bul: [], res: 0, cool: 0, gate: 0, msg: c.hint }; },
+    update(dt, s) {
+      s.cool -= dt; s.gate = Math.max(0, s.gate - dt); s.sp -= dt;
+      if (s.n < c.items.length && s.sp <= 0) { const it = c.items[s.n]; s.live.push({ x: 266, y: 34, label: it[0], bad: it[1], say: it[2], row: s.n % 2 }); s.n++; s.sp = 2.3; }
+      for (const it of s.live) {
+        if (it.fall) { it.y += 150 * dt; if (it.y > 138) { it.dead = true; s.res++; } }
+        else {
+          it.x -= 32 * dt;
+          if (it.x <= 34) {
+            if (it.bad) { it.fall = true; s.gate = 0.6; sfx.thud(); pop("GATE SHUT", 60, 70, BAD); hurt(c.gateMsg); }
+            else { it.dead = true; s.res++; gain(50); sfx.coin(); pop(c.passWord, 60, 70, GOOD); }
+          }
+        }
+      }
+      for (const b of s.bul) {
+        b.y -= 210 * dt; if (b.y < 28) b.dead = true;
+        for (const it of s.live) {
+          if (it.fall || it.dead || b.dead || Math.abs(b.x - it.x) > 9 || b.y > it.y + 16) continue;
+          b.dead = true;
+          if (it.bad) { it.fall = true; gain(150); sfx.thud(); shake = 0.15; pop(c.badWord, it.x, it.y + 34, BAD); s.msg = it.say || c.hitMsg; }
+          else { pop("THAT ONE IS FINE", it.x, it.y + 34, GOLD); hurt(c.oopsMsg); }
+        }
+      }
+      s.live = s.live.filter(i => !i.dead); s.bul = s.bul.filter(b => !b.dead);
+      if (!st.fin && s.res >= c.items.length) finish();
+    },
+    onA(s) { if (s.cool > 0) return; s.cool = 0.22; s.bul.push({ x: P.x + (P.dir > 0 ? 6 : -6), y: 146 }); P.act = 0.2; sfx.shoot(); },
+    pose() { return P.act > 0 ? "shoot" : null; },
+    cap(s) { return s.msg; },
+    count(s) { return c.countLabel + " " + s.res + "/" + c.items.length; },
+    draw(s) {
+      room(c.z, c.sign);
+      R(0, 138, W, 10, c.z === "m" ? "#2f6fb0" : "#7a4e30");
+      if (c.z === "m") for (let x = (Math.floor(T / 300) % 2) * 8; x < W; x += 16) R(x, 141, 5, 1, "#9fd0ff");
+      tag(c.moatLabel, 128, 125, CREAM, "rgba(0,0,0,.45)");
+      R(0, 28, W, 2, "#555a70");
+      R(10, 20, 6, 46, "#7d8496"); R(40, 20, 6, 46, "#7d8496"); R(8, 18, 40, 4, "#5d6474");
+      if (s.gate > 0) for (let x = 18; x < 40; x += 5) R(x, 22, 2, 44, "#333");
+      for (const it of s.live) {
+        if (!it.fall) R(it.x, 30, 1, 4, "#555");
+        R(it.x - 5, it.y, 10, 13, "#fff"); R(it.x - 5, it.y, 10, 2, it.bad ? BAD : GOOD);
+        R(it.x - 3, it.y + 5, 6, 1, "#99a"); R(it.x - 3, it.y + 8, 6, 1, "#99a");
+        if (!it.fall) tag((it.bad ? "X " : "OK ") + it.label, it.x, 52 + it.row * 12, it.bad ? BAD : GOOD);
+      }
+      for (const b of s.bul) { R(b.x - 1, b.y, 3, 5, c.bullet); }
+    }
+  }, c);
+}
+
+function repsStage(c) {
+  return Object.assign({
+    move: false,
+    init() { P.x = c.x; P.dir = 1; return { i: 0, anim: 0, lock: 0, end: -1, msg: c.hint }; },
+    update(dt, s) { s.anim = Math.max(0, s.anim - dt * 2.2); s.lock -= dt; if (s.end > 0) { s.end -= dt; if (s.end <= 0) finish(); } },
+    onA(s) {
+      if (s.i >= c.reps.length || s.lock > 0) return;
+      s.i++; s.anim = 1; s.lock = 0.25; s.msg = c.reps[s.i - 1]; sfx.rep(); if (c.onRep) c.onRep(s);
+      if (s.i >= c.reps.length) s.end = 2.2;
+    },
+    pose() { return c.poseName; }, anim(s) { return s.anim; },
+    cap(s) { return (s.i < c.reps.length ? "PRESS A (" + s.i + "/" + c.reps.length + "). " : "") + s.msg; }
+  }, c);
+}
+
+function deliverStage(c) {
+  return Object.assign({
+    move: true, min: 14, max: 186,
+    init() { P.x = 24; return { i: 0, msg: "", carry: c.carry0, busy: false, time: c.time }; },
+    update(dt, s) { const w = c.steps[s.i]; s.near = !!w && Math.abs(P.x - w.x) < 12; if (w) s.msg = s.near ? "PRESS A to " + w.prompt + "." : w.go; },
+    onA(s) {
+      if (!s.near || s.busy) return; s.busy = true;
+      c.steps[s.i].act(s, () => { s.busy = false; s.i++; gain(200); if (s.i >= c.steps.length) finish(); });
+    },
+    pose(s) { return s.carry ? "carry" : null; },
+    cap(s) { return s.msg; }
+  }, c);
+}
+
+/* ---------------- the ten rooms ---------------- */
+const FACT = [["FIT", 38, [4.5, 3.5]], ["SKILLS", 23, [4.2, 4.0]], ["EXPERIENCE", 15, [4.0, 3.0]], ["MARKET", 8, [4.0, 4.0]], ["PAY", 8, [3.5, 3.5]], ["WORK MODE", 8, [4.0, 3.5]]];
+const score = j => FACT.reduce((a, f) => a + f[1] * f[2][j] / 100, 0).toFixed(1);
+const NMSG = ["Fit, 38%. Does the role match analytics plus finance, real estate or operations?",
+  "Skills, 23%. SQL, Power BI, Tableau, SAS Viya, Python and R, Excel, Bloomberg, CoStar.",
+  "Experience, 15%. Realistic for a new graduate?", "Market, 8%. Employer strength and the local job market.",
+  "Pay, 8%. Salary against cost of living.", "Work arrangement, 8%. Hybrid or on site preferred."];
+const SRC = ["INDEED", "WORKDAY", "CAREERS", "A LINK"];
+const VX = [-60, -100, -45, -85, -110, -70, -50, -95];
+const LANES = [58, 128, 198];
+const PIECES = ["SQL", "POWER BI", "FINANCE", "COSTAR", "HOOK", "TOP REQS", "2ND REQS", "CLOSE"];
+const PMSG = ["Resume: SQL in the skills line.", "Resume: Power BI added.", "Resume: finance experience matched.", "Resume: CoStar added. Summary rewritten.",
+  "Letter: a hook about the role.", "Letter: top requirements matched.", "Letter: secondary requirements.", "Letter: a short close."];
+const OBS = [["FAKE EXP", "Crash! Never invent experience."], ["DASHES", "Crash! No dashes in the letter."], ["HYPE", "Crash! No overstated claims."]];
+const SLOT = [64, 128, 192];
+const HOOKS = ["RECRUITER", "FGCU ALUM", "FRATERNITY", "COLLEGIATE 100", "CARIBBEAN", "COMBAT SPORTS", "F-1 TO H-1B", "HIRING FIRM"];
+const BOMBS = ["NO LINK", "A GUESS"];
+const PEOPLE = [
+  { who: "PERSON A", role: "ANALYST", place: "FAR AWAY", says: "FGCU ALUM", a: [0, 0, 0] },
+  { who: "PERSON B", role: "RECRUITER", place: "FAR AWAY", says: "HIRES ANALYSTS", a: [3, 0, 1] },
+  { who: "PERSON C", role: "MANAGER", place: "LOCAL", says: "COMBAT SPORTS", a: [1, 1, 0] }
+];
+const OPTS = [["FGCU ALUM", "COMBAT SPORTS", "CARIBBEAN", "HIRES ANALYSTS"], ["15 MIN CALL", "COFFEE", "VISA HELP?"], ["NO ATTACHMENT", "RESUME"]];
+const SLOTN = ["HOOK", "ASK", "ATTACH"];
+
+const STAGES = [
+  /* M: MINE, catch game */
+  {
+    zone: "MONTY'S MANOR: MINE", move: true, min: 16, max: 180,
+    intro: [["sys", "MINE. Monty pulls new analyst jobs from job boards, career sites, and links Daniel pastes in."],
+            ["sys", "Catch 8 in the cart. Dodge the red SEEN BEFORE ones."]],
+    outro: [["monty", "Every job is logged, so none gets processed twice."]],
+    init() { P.x = 90; return { items: [], n: 0, sp: 0.4, caught: 0, time: 40, msg: "Catch 8 new postings. Dodge the red ones." }; },
+    update(dt, s) {
+      const cx = P.x + P.dir * 13; s.sp -= dt;
+      if (s.sp <= 0 && s.items.length < 3) { const n = s.n++; s.items.push({ x: 214, y: 66, vx: VX[n % 8], vy: -60, d: n % 3 === 2 }); s.sp = 0.8; }
+      for (const it of s.items) {
+        it.vy += 160 * dt; it.x += it.vx * dt; it.y += it.vy * dt;
+        if (it.b) { if (it.y > 190 || it.x > 270) it.dead = true; }
+        else if (it.y >= 158 && it.y <= 172 && Math.abs(it.x - cx) < 11) {
+          if (it.d) { it.b = true; it.vy = -110; it.vx = 100; pop("SEEN BEFORE", it.x, 140, BAD); hurt("Seen before! That job was already processed."); if (st.fin) return; }
+          else { it.dead = true; s.caught++; gain(100); sfx.coin(); if (s.caught >= 8) { finish(); return; } }
+        } else if (it.y > 178) it.dead = true;
+      }
+      s.items = s.items.filter(i => !i.dead);
+    },
+    onA() { sfx.blip(); },
+    cap(s) { return s.msg; },
+    count(s) { return "SCREENED " + Math.round(STATS.screened * s.caught / 8); },
+    draw(s) {
+      room("m", "M: MINE");
+      R(188, 36, 64, 46, "#333a55"); R(191, 39, 58, 38, "#0b2a1e"); R(214, 82, 12, 6, "#555"); R(204, 88, 32, 3, "#555");
+      txt(SRC[Math.floor(T / 900) % 4], 220, 46, "#5dff8a", "center");
+      for (let i = 0; i < 3; i++) R(196, 60 + i * 5, 10 + ((Math.floor(T / 120) + i * 5) % 36), 1, "#2f9e58");
+      tag("JOB BOARDS", 206, 100, CREAM);
+      for (const it of s.items) { R(it.x - 4, it.y - 5, 8, 10, it.d ? "#ffb3a8" : "#fff"); R(it.x - 2, it.y - 2, 4, 1, "#99a"); R(it.x - 2, it.y + 1, 4, 1, "#99a"); if (it.d) { R(it.x - 4, it.y - 5, 8, 2, "#d33"); R(it.x - 1, it.y - 1, 2, 4, "#d33"); } }
+    },
+    front(s) {
+      const cx = P.x + P.dir * 13;
+      R(cx - 7, FY - 11, 14, 8, "#7a7f95"); R(cx - 7, FY - 11, 14, 1, "#aab"); R(cx - 6, FY - 3, 3, 3, "#222"); R(cx + 3, FY - 3, 3, 3, "#222");
+      for (let i = 0; i < Math.min(4, s.caught); i++) R(cx - 5 + i * 3, FY - 14, 2, 4, "#fff");
+    }
+  },
+
+  /* O: OMIT, shooter */
+  shootStage({
+    z: "m", sign: "O: OMIT", zone: "MONTY'S MANOR: OMIT", bullet: "#c8ccd8", countLabel: "CHECKED",
+    moatLabel: "SKIPPED: INELIGIBLE", badWord: "SKIPPED", passWord: "PASS",
+    hint: "Shoot the red postings. Let the green ones through.",
+    hitMsg: "Into the moat it goes.", oopsMsg: "Oops! That one was eligible.",
+    gateMsg: "You missed one! The gate still caught it.",
+    intro: [["sys", "OMIT. A strict pass or fail gate, before any scoring."],
+            ["sys", "Shoot the red postings. Let the green ones through."]],
+    outro: [["monty", "Terribly sorry, citizenship required. Into the bin it goes."],
+            ["sys", "Silent on sponsorship? Pass. A plain \"we do not sponsor\"? Pass, with a flag. Fully remote or fake? Skipped."]],
+    items: [["NO MENTION", false], ["CITIZENS ONLY", true, "Requires citizenship. Into the bin it goes."],
+            ["NO OPT/CPT", true, "Excludes OPT, CPT or STEM OPT. Out."], ["NO SPONSOR", false],
+            ["ITAR US ONLY", true, "Caught it! An Analyst I role that was ITAR, U.S. persons only."],
+            ["FULLY REMOTE", true, "Fully remote. Hybrid and on site only."], ["HYBRID ROLE", false],
+            ["NO VISA EVER", true, "\"No sponsorship now or in the future.\" Fail."],
+            ["CLEARANCE", true, "Security clearance required. Out."], ["FAKE LISTING", true, "Suspicious listing. Skipped."]]
+  }),
+
+  /* N: NUMBER, timing lift */
+  {
+    zone: "MONTY'S MANOR: NUMBER", move: false,
+    intro: [["sys", "NUMBER. Each job is scored out of 5 on six weighted factors."],
+            ["sys", "Press A when the marker is in the green. Each good lift locks one factor."]],
+    outro: [["monty", "Splendid. A 4.2. Shall I prepare the paperwork?"],
+            ["sys", "Only 4.0 and up moves on, with a written report. Daniel can overrule. The hiring label (PROVEN, LIKELY, UNKNOWN) is a separate tag."]],
+    init() { P.x = 46; P.dir = 1; return { i: 0, p: 0, anim: 0, ph: 0, t: 0, msg: "Press A when the marker is in the green." }; },
+    zw(s) { return 0.36 - s.i * 0.035; },
+    update(dt, s) {
+      s.anim = Math.max(0, s.anim - dt * 2.2);
+      if (s.ph === 0) s.p = (s.p + dt * (0.9 + s.i * 0.18)) % 2;
+      else { s.t -= dt; if (s.t <= 0) { if (s.ph === 1) { s.ph = 2; s.t = 2.6; sfx.buzz(); s.msg = "Next job scores 3.6. Below 4.0, so down the trapdoor."; } else finish(); } }
+    },
+    onA(s) {
+      if (s.ph !== 0) return;
+      const pos = s.p < 1 ? s.p : 2 - s.p;
+      if (Math.abs(pos - 0.5) <= this.zw(s) / 2) {
+        s.i++; s.anim = 1; gain(150); sfx.rep(); s.msg = NMSG[s.i - 1];
+        if (s.i >= 6) { s.ph = 1; s.t = 1.8; sfx.coin(); pop("4.2 PASS", 172, 86, GOOD); }
+      } else hurt("Bad lift! Wait for the green.");
+    },
+    pose() { return "lift"; }, anim(s) { return s.anim; },
+    cap(s) { return s.msg; },
+    count() { return "EVALUATIONS " + STATS.evals; },
+    draw(s) {
+      room("m", "N: NUMBER");
+      const j = s.ph === 2 ? 1 : 0, lock = s.ph === 2 ? 6 : s.i;
+      R(92, 20, 160, 100, "#10162c"); R(92, 20, 160, 2, GOLD);
+      txt("JOB " + (j ? "B" : "A") + ": ANALYST", 98, 26, CREAM);
+      FACT.forEach((f, r) => {
+        const on = r < lock, v = on ? f[2][j].toFixed(1) : (((Math.floor(T / 60) + r * 7) % 50) / 10).toFixed(1);
+        txt(f[0].padEnd(11) + (f[1] + "%").padStart(3) + " " + v, 98, 38 + r * 10, on ? "#fff" : "#6a7396");
+      });
+      if (lock === 6) {
+        txt(j ? "SCORE " + score(1) + " TOO LOW" : "SCORE " + score(0) + " PASS", 98, 100, j ? BAD : GOOD);
+        txt(j ? "INTL HIRE: UNKNOWN" : "INTL HIRE: PROVEN", 98, 110, GOLD);
+        if (j) { R(150, 158, 26, 7, "#000"); R(158, 152 + (Math.floor(T / 200) % 3) * 2, 8, 9, "#fff"); tag("BELOW THRESHOLD", 163, 136, BAD); }
+      }
+      if (s.ph === 0) {
+        const w = this.zw(s), pos = s.p < 1 ? s.p : 2 - s.p;
+        R(92, 126, 160, 9, "#10162c"); R(92 + 160 * (0.5 - w / 2), 126, 160 * w, 9, GOOD); R(91 + 160 * pos, 123, 3, 15, "#fff");
+      }
+      R(26, FY, 42, 3, RED); R(24, 130, 3, 44, "#555"); R(66, 130, 3, 44, "#555");
+    }
+  },
+
+  /* T: TAILOR, car and obstacles */
+  {
+    zone: "MONTY'S MANOR: TAILOR", move: true, min: 38, max: 218, noPlayer: true,
+    intro: [["sys", "TAILOR. Monty builds a tailored resume and cover letter for each job that passes."],
+            ["sys", "Drive! Grab the 8 green pieces. Dodge fake experience, dashes and hype."]],
+    outro: [["monty", "Verified facts only. I never invent experience."],
+            ["sys", "Out come one page PDFs, saved in a ready-to-apply folder."]],
+    init() { P.x = 128; return { items: [], sp: 0.6, got: 0, n: 0, scroll: 0, msg: "Grab the green pieces. Dodge the red blocks." }; },
+    update(dt, s) {
+      const v = 80 + s.got * 5; s.scroll = (s.scroll + v * dt) % 24; s.sp -= dt;
+      if (s.sp <= 0) {
+        s.sp = 0.7; const x = LANES[Math.floor(Math.random() * 3)];
+        if (!s.items.some(i => i.pick) && s.n % 2 === 0) s.items.push({ x, y: -14, pick: true, label: PIECES[s.got] });
+        else { const o = OBS[s.n % 3]; s.items.push({ x, y: -14, label: o[0], say: o[1] }); }
+        s.n++;
+      }
+      for (const it of s.items) {
+        it.y += v * dt;
+        if (it.y > 190) it.dead = true;
+        else if (it.y > 134 && it.y < 170 && Math.abs(it.x - P.x) < 17) {
+          it.dead = true;
+          if (it.pick) { s.got++; gain(150); sfx.coin(); pop(it.label, it.x, 126, GOOD); s.msg = PMSG[s.got - 1]; if (s.got >= 8) { finish(); return; } }
+          else { pop("CRASH", it.x, 126, BAD); hurt(it.say); if (st.fin) return; }
+        }
+      }
+      s.items = s.items.filter(i => !i.dead);
+    },
+    onA() { sfx.blip(); },
+    cap(s) { return s.msg; },
+    count(s) { return "PIECES " + s.got + "/8"; },
+    draw(s) {
+      R(0, 0, W, 184, "#4a4f66"); R(22, 0, 212, 184, "#2b2f44"); R(22, 0, 2, 184, GOLD); R(232, 0, 2, 184, GOLD);
+      for (let y = -24 + s.scroll; y < 184; y += 24) { R(92, y, 2, 12, "#fff"); R(162, y, 2, 12, "#fff"); }
+      for (let y = -48 + s.scroll * 2; y < 184; y += 48) { R(4, y, 13, 9, "#8a5a3a"); R(6, y + 2, 5, 4, "#c8ccd8"); R(240, y + 22, 13, 9, "#8a5a3a"); R(244, y + 24, 4, 4, GREEN); }
+      for (const it of s.items) {
+        if (it.pick) { R(it.x - 7, it.y, 14, 12, "#fff"); R(it.x - 7, it.y, 14, 3, GOOD); R(it.x - 4, it.y + 6, 8, 1, "#99a"); R(it.x - 4, it.y + 9, 8, 1, "#99a"); }
+        else { R(it.x - 10, it.y + 1, 20, 10, "#e8402a"); R(it.x - 10, it.y + 4, 20, 3, "#fff"); R(it.x - 9, it.y + 11, 3, 3, "#333"); R(it.x + 6, it.y + 11, 3, 3, "#333"); }
+        tag(it.label, it.x, it.y + 16, it.pick ? GOOD : BAD);
+      }
+      const x = Math.round(P.x);
+      R(x - 10, 149, 3, 6, "#111"); R(x + 7, 149, 3, 6, "#111"); R(x - 10, 162, 3, 6, "#111"); R(x + 7, 162, 3, 6, "#111");
+      R(x - 8, 146, 16, 25, NAVY); R(x - 8, 146, 16, 2, GOLD); R(x - 6, 150, 12, 4, "#9fd0ff");
+      R(x - 5, 156, 10, 9, "#0d1626"); R(x - 3, 158, 6, 5, "#16263f"); R(x - 3, 158, 6, 1, GOLD);
+      R(x - 7, 169, 3, 2, "#e8402a"); R(x + 4, 169, 3, 2, "#e8402a");
+      signPlate("T: TAILOR"); tag("NEXT: " + PIECES[Math.min(7, s.got)], 128, 7, GOLD);
+    }
+  },
+
+  /* Y: YIELD (Monty), cups and ball */
+  {
+    zone: "MONTY'S MANOR: YIELD", move: false,
+    intro: [["sys", "YIELD. Every finished job goes in the Ledger."],
+            ["sys", "Watch the cups. Find the Ledger 3 times. Left and right to choose, A to lift."]],
+    outro: [["daniel", "The agents do the work. I press submit."]],
+    init() { P.x = 22; P.dir = 1; const s = { round: 0, sel: 1, cups: [0, 1, 2].map(i => ({ slot: i, x: SLOT[i], dy: 0 })), msg: "" }; this.begin(s); return s; },
+    begin(s) {
+      s.led = Math.floor(Math.random() * 3); s.ph = "show"; s.t = 1.4; s.left = [4, 6, 8][s.round]; s.dur = [0.42, 0.3, 0.21][s.round];
+      s.sw = null; s.pick = -1; s.msg = "Watch the Ledger. It goes under a cup.";
+    },
+    update(dt, s) {
+      if (s.ph === "show") { s.t -= dt; if (s.t <= 0) { s.ph = "mix"; s.msg = "Keep your eye on it..."; } }
+      else if (s.ph === "mix") {
+        if (!s.sw) {
+          if (s.left <= 0) { s.ph = "pick"; s.msg = "Where is the Ledger? Left and right to choose, A to lift."; }
+          else {
+            const a = Math.floor(Math.random() * 3), b = (a + 1 + Math.floor(Math.random() * 2)) % 3;
+            s.sw = { ca: s.cups.find(c => c.slot === a), cb: s.cups.find(c => c.slot === b), a, b, t: 0 }; s.left--; sfx.blip();
+          }
+        } else {
+          const w = s.sw; w.t += dt / s.dur; const k = Math.min(1, w.t);
+          w.ca.x = SLOT[w.a] + (SLOT[w.b] - SLOT[w.a]) * k; w.cb.x = SLOT[w.b] + (SLOT[w.a] - SLOT[w.b]) * k;
+          w.ca.dy = -Math.sin(k * Math.PI) * 9; w.cb.dy = -Math.sin(k * Math.PI) * 3;
+          if (k >= 1) { w.ca.slot = w.b; w.cb.slot = w.a; w.ca.dy = w.cb.dy = 0; s.sw = null; }
+        }
+      } else if (s.ph === "reveal") {
+        s.t -= dt;
+        if (s.t <= 0) { if (s.ok) s.round++; if (s.round >= 3) { s.ph = "done"; this.review(s); } else this.begin(s); }
+      }
+    },
+    onDir(s, d) { if (s.ph === "pick") { s.sel = clamp(s.sel + d, 0, 2); sfx.blip(); } },
+    onA(s) {
+      if (s.ph !== "pick") return;
+      const c = s.cups.find(c => c.slot === s.sel); s.pick = s.cups.indexOf(c); s.ok = s.pick === s.led; s.ph = "reveal"; s.t = 1.3;
+      if (s.ok) { gain(300); sfx.coin(); pop("FOUND IT", c.x, 104, GOOD); s.msg = "Found the Ledger!"; }
+      else hurt("Empty! The Ledger was under another cup.");
+    },
+    onPoint(s, x, y, down) { if (down && s.ph === "pick" && y > 100 && y < 160) { const i = SLOT.findIndex(v => Math.abs(v - x) < 20); if (i >= 0) { s.sel = i; this.onA(s); } } },
+    review(s) {
+      showCard("LEDGER: NEW ROW", ["Company A, Financial Analyst", "Score 4.2, international hiring: PROVEN", "Status: EVALUATED", "Plus date, links, location, follow up date and notes"], "TAKE IT TO DANIEL", () =>
+        showCard("REVIEW", ["Resume: one page, matched to the job.", "Cover letter: one page, four paragraphs.", "Evaluation report attached."], "SUBMIT (Daniel presses this)", () => {
+          s.applied = true; confetti(); sfx.win();
+          showCard("APPLIED!", ["Daniel submitted it himself. The agents never do.", "Status: EVALUATED to APPLIED.", "Folder moves from ready-to-apply to applied."], "CONTINUE", finish);
+        }));
+    },
+    cap(s) { return s.msg; },
+    count(s) { return s.applied ? "STATUS APPLIED" : "ROUND " + Math.min(3, s.round + 1) + "/3"; },
+    draw(s) {
+      room("m", "Y: YIELD"); danielDesk();
+      R(42, 150, 160, 4, "#c08a55"); R(46, 154, 4, 20, "#8a5a3a"); R(194, 154, 4, 20, "#8a5a3a");
+      s.cups.forEach((c, i) => {
+        const up = (s.ph === "show" && i === s.led) || (s.ph === "reveal" && (i === s.pick || i === s.led)) || s.ph === "done";
+        if (up && i === s.led) { R(c.x - 7, 143, 14, 7, CREAM); R(c.x - 1, 143, 2, 7, GOLD); R(c.x - 5, 145, 3, 1, "#99a"); R(c.x + 2, 145, 3, 1, "#99a"); }
+        const y = 128 + c.dy - (up ? 16 : 0);
+        R(c.x - 9, y, 18, 4, NAVY); R(c.x - 11, y + 4, 22, 18, NAVY); R(c.x - 11, y + 19, 22, 3, GOLD); R(c.x - 8, y + 5, 2, 12, "#3c5f8f");
+      });
+      if (s.ph === "pick") marker(SLOT[s.sel], 114);
+    }
+  },
+
+  /* P: PROSPECT, slicing game */
+  {
+    zone: "POPPY'S POST OFFICE: PROSPECT", move: true, min: 14, max: 242,
+    intro: [["poppy", "Let's find some people!"],
+            ["sys", "PROSPECT. Poppy finds people with real common ground, using Vibe Prospecting and Crustdata."],
+            ["sys", "Slice 8 green cards. Don't hit the bombs. Swipe the screen, or stand under a card and press A."]],
+    outro: [["poppy", "Found someone who also went to FGCU. Lovely!"],
+            ["sys", "Rule: only what people share publicly. Never guess from a name or photo."]],
+    init() { P.x = 128; return { items: [], sp: 0.5, got: 0, n: 0, time: 45, trail: [], msg: "Slice the green cards. Leave the bombs." }; },
+    update(dt, s) {
+      s.sp -= dt;
+      if (s.sp <= 0) {
+        s.sp = 0.75; const bomb = s.n % 3 === 2 || Math.random() < 0.15, x = 30 + Math.random() * 196;
+        s.items.push({ x, y: 186, vx: (128 - x) * 0.25 + (Math.random() - 0.5) * 30, vy: -(185 + Math.random() * 45), bomb, label: bomb ? BOMBS[s.n % 2] : HOOKS[s.n % 8] }); s.n++;
+      }
+      for (const it of s.items) { it.vy += 190 * dt; it.x += it.vx * dt; it.y += it.vy * dt; if (it.y > 192 && it.vy > 0) it.dead = true; }
+      s.items = s.items.filter(i => !i.dead); s.trail = s.trail.filter(p => (p.l -= dt) > 0);
+    },
+    hit(s, it) {
+      if (it.dead) return; it.dead = true;
+      if (it.bomb) { pop("BOOM", it.x, it.y, BAD); hurt("Boom! No guessing. Only real, public common ground."); }
+      else {
+        s.got++; gain(150); sfx.coin(); pop(it.label, it.x, it.y, GOOD); s.msg = "Sliced: " + it.label + ".";
+        for (const d of [-1, 1]) fx.push({ t: "p", x: it.x + d * 4, y: it.y, vx: d * 50, vy: -40, g: 240, c: "#fff", w: 7, h: 10, life: 0.6 });
+        if (s.got >= 8) finish();
+      }
+    },
+    onA(s) { P.act = 0.2; sfx.shoot(); for (const it of s.items.slice()) { if (Math.abs(it.x - P.x) < 15 && it.y < 152) { this.hit(s, it); if (st.fin) return; } } },
+    onPoint(s, x, y) { s.trail.push({ x, y, l: 0.25 }); for (const it of s.items.slice()) { if (Math.abs(it.x - x) < 14 && Math.abs(it.y - y) < 14) { this.hit(s, it); if (st.fin) return; } } },
+    pose() { return P.act > 0 ? "shoot" : null; },
+    cap(s) { return s.msg; },
+    count(s) { return "SLICED " + s.got + "/8"; },
+    draw(s) {
+      room("p", "P: PROSPECT");
+      tag("VIBE PROSPECTING, CRUSTDATA", 128, 125, CREAM, "rgba(0,0,0,.45)");
+      if (P.act > 0) R(P.x + (P.dir > 0 ? 5 : -7), 24, 2, 120, "#fff");
+      for (const it of s.items) {
+        if (it.bomb) { R(it.x - 4, it.y - 7, 8, 14, "#111"); R(it.x - 7, it.y - 4, 14, 8, "#111"); R(it.x - 6, it.y - 6, 12, 12, "#111"); R(it.x + 2, it.y - 11, 1, 4, GOLD); R(it.x + 1 + (Math.floor(T / 90) % 2), it.y - 13, 2, 2, "#e8402a"); R(it.x - 3, it.y - 3, 2, 2, "#555"); }
+        else { R(it.x - 8, it.y - 6, 16, 12, "#fff"); R(it.x - 8, it.y - 6, 16, 3, GOOD); R(it.x - 5, it.y, 10, 1, "#99a"); R(it.x - 5, it.y + 3, 6, 1, "#99a"); }
+        tag(it.label, it.x, it.y + 10, it.bomb ? BAD : GOOD);
+      }
+      for (const p of s.trail) R(p.x - 1, p.y - 1, 3, 3, GOLD);
+    }
+  },
+
+  /* O: ORGANISE, stamper */
+  shootStage({
+    z: "p", sign: "O: ORGANISE", zone: "POPPY'S POST OFFICE: ORGANISE", bullet: RED, countLabel: "SORTED",
+    moatLabel: "RETURN TO SENDER", badWord: "RETURNED", passWord: "KEEP",
+    hint: "Stamp the red cards. Keep the green ones.",
+    hitMsg: "Stamped. Return to sender.", oopsMsg: "Oops! That was a new contact.",
+    gateMsg: "You missed one! The sorter still caught it.",
+    intro: [["sys", "ORGANISE. Nobody gets contacted twice, and weak fits are dropped."],
+            ["sys", "Stamp the red cards. Keep the green ones."]],
+    outro: [["poppy", "Already wrote to them last week, no double letters."],
+            ["sys", "First campaign: 58 recruiters found, 5 weak fits removed. Daniel approves the final list."]],
+    items: [["NEW CONTACT", false], ["ALREADY SENT", true, "Already wrote to them. No double letters."], ["NEW CONTACT", false],
+            ["WEAK FIT", true, "Weak fit. Off the list."], ["IN DRAFTS", true, "There's already a draft for this one."], ["NEW CONTACT", false], ["WEAK FIT", true, "Weak fit. Off the list."]]
+  }),
+
+  /* P: PERSONALISE, build the email from the profile */
+  {
+    zone: "POPPY'S POST OFFICE: PERSONALISE", move: false, grid: true,
+    intro: [["sys", "PERSONALISE. Every email is built for one person."],
+            ["sys", "Read the profile. Pick the right hook, ask and attachment, then save the draft. A wrong draft costs a heart."]],
+    init() { P.x = 126; P.dir = 1; const s = { r: 0, row: 0, v: [], time: 75, msg: "Left and right change a line. A goes to the next line. Then SAVE DRAFT." }; this.load(s); return s; },
+    load(s) { const a = PEOPLE[s.r].a; s.v = [(a[0] + 2) % 4, 2, 1 - a[2]]; s.row = 0; },
+    update() {},
+    onDir(s, d) {
+      if (Math.abs(d) === 3) s.row = clamp(s.row + Math.sign(d), 0, 3);
+      else if (s.row < 3) { const n = OPTS[s.row].length; s.v[s.row] = (s.v[s.row] + d + n) % n; }
+      sfx.blip();
+    },
+    onA(s) { if (s.row < 3) { s.row++; sfx.blip(); } else this.save(s); },
+    save(s) {
+      const a = PEOPLE[s.r].a;
+      if (s.v[0] !== a[0]) { s.row = 0; hurt("Wrong hook. Use the true one from their own profile."); return; }
+      if (s.v[1] !== a[1]) { s.row = 1; hurt(s.v[1] === 2 ? "Never ask about visas in a first email." : "Coffee if they're local. A 15 minute call if not."); return; }
+      if (s.v[2] !== a[2]) { s.row = 2; hurt("Only recruiters get the resume."); return; }
+      gain(400); sfx.coin(); pop("DRAFT SAVED", 190, 60, GOOD); s.r++;
+      if (s.r >= 3) { finish(); return; }
+      this.load(s); s.msg = "Saved as a Gmail draft. Next person.";
+    },
+    onPoint(s, x, y, down) {
+      if (!down || x < 128) return; const r = Math.floor((y - 30) / 21); if (r < 0 || r > 3) return;
+      s.row = r; if (r < 3) { s.v[r] = (s.v[r] + 1) % OPTS[r].length; sfx.blip(); } else this.save(s);
+    },
+    cap(s) { return s.msg; },
+    count(s) { return "EMAIL " + Math.min(3, s.r + 1) + "/3"; },
+    draw(s) {
+      room("p", "P: PERSONALISE");
+      const p = PEOPLE[Math.min(2, s.r)];
+      R(6, 30, 118, 84, DARK); R(6, 30, 118, 2, GOLD);
+      R(12, 36, 16, 16, "#3a4470"); R(17, 38, 6, 6, "#c9a27a"); R(15, 45, 10, 7, "#9db7dd");
+      txt(p.who, 34, 36, GOLD); txt(p.role, 34, 46, "#fff");
+      txt("LIVES:", 12, 60, "#8f98c0"); txt(p.place, 12, 70, "#fff");
+      txt("PROFILE SAYS:", 12, 86, "#8f98c0"); txt(p.says, 12, 96, GOOD);
+      for (let r = 0; r < 3; r++) {
+        const y = 30 + r * 21, on = s.row === r;
+        R(130, y, 122, 19, on ? "#2a3157" : DARK);
+        if (on) { R(130, y, 122, 1, GOLD); R(130, y + 18, 122, 1, GOLD); R(130, y, 1, 19, GOLD); R(251, y, 1, 19, GOLD); txt("<>", 234, y + 2, GOLD); }
+        txt(SLOTN[r], 134, y + 2, "#8f98c0"); txt(OPTS[r][s.v[r]], 134, y + 10, "#fff");
+      }
+      const on = s.row === 3; R(130, 93, 122, 19, on ? GOLD : GREEN); txt("SAVE DRAFT", 191, 99, "#fff", "center");
+    }
+  },
+
+  /* P: PACE, button mash */
+  {
+    zone: "POPPY'S POST OFFICE: PACE", move: false, ownTimer: true,
+    intro: [["sys", "PACE. About 20 emails a day, so Gmail doesn't flag them as spam."],
+            ["sys", "Mash A as fast as you can! Hit 20 before the clock runs out. The clock starts on your first press."]],
+    outro: [["daniel", "I review and send every one myself."],
+            ["sys", "Day one: 28 recruiter emails went out."]],
+    init() { P.x = 70; P.dir = 1; return { n: 0, time: 6, go: false, anim: 0, msg: "Mash A! 20 emails before the clock hits zero." }; },
+    sent(s) { return Math.min(20, Math.floor(s.n * 2 / 3)); },
+    update(dt, s) {
+      s.anim = Math.max(0, s.anim - dt * 3);
+      if (s.go) { s.time -= dt; if (s.time <= 0) { s.time = 0; fail("Too slow! The daily batch wasn't ready."); } }
+    },
+    onA(s) {
+      s.go = true; s.n++; s.anim = 1; if (s.n % 2) sfx.rep();
+      if (s.n % 3 === 0) fx.push({ t: "p", x: 84, y: 146, vx: 130, vy: -30, g: 60, c: "#fff", w: 7, h: 5, life: 0.9 });
+      if (s.n >= 30) { gain(300); sfx.bell(); s.msg = "Twenty! That's the daily limit."; finish(); }
+    },
+    pose() { return "bike"; }, anim(s) { return s.anim; },
+    cap(s) { return s.msg; },
+    count(s) { return "TODAY'S BATCH " + this.sent(s) + "/20"; },
+    draw(s) {
+      room("p", "P: PACE");
+      const n = this.sent(s);
+      R(80, 30, 96, 28, n >= 20 ? RED : DARK); R(80, 30, 96, 2, GOLD);
+      txt("DAILY LIMIT", 128, 35, "#fff", "center"); txt(n + " OF 20", 128, 46, GOLD, "center");
+      R(80, 62, 96, 6, "#10162c"); R(80, 62, Math.round(96 * Math.min(1, s.n / 30)), 6, GOOD);
+      const x = 70, sp = Math.floor(T / 70) % 4, on = s.anim > 0;
+      R(x - 6, FY - 2, 30, 2, "#333"); R(x - 5, FY - 12, 10, 2, "#222"); R(x - 1, FY - 10, 2, 8, RED); R(x - 1, FY - 7, 18, 2, RED);
+      R(x + 13, FY - 24, 2, 19, RED); R(x + 10, FY - 25, 8, 2, "#222");
+      R(x + 12, FY - 13, 11, 11, "#333"); R(x + 14, FY - 11, 7, 7, "#555");
+      const sx = [0, 3, 6, 3], sy = [3, 0, 3, 6]; R(x + 14 + sx[on ? sp : 0], FY - 11 + sy[on ? sp : 0], 1, 1, "#fff");
+      danielDesk();
+      for (let i = 0; i < Math.floor(n / 4); i++) R(232, 153 - i * 2, 12, 2, i % 2 ? "#fff" : "#dde");
+    }
+  },
+
+  /* Y: YIELD (Poppy), timed delivery */
+  deliverStage({
+    zone: "POPPY'S POST OFFICE: YIELD", carry0: false, time: 25,
+    intro: [["poppy", "They replied! I've packed you a prep brief."],
+            ["sys", "YIELD. Open the reply, then run the brief to Daniel before time runs out."]],
+    outro: [["sys", "Real outcome: warm outreach led to a referral offer and an intro to regional leadership."]],
+    steps: [
+      { x: 70, go: "A reply just landed. Run to the letter!", prompt: "open the reply",
+        act(s, next) { sfx.bell(); s.carry = true; showCard("PREP BRIEF", ["Their role, career path and the shared connection", "Their recent posts and the job Daniel wants there", "How Daniel's experience maps to their team", "5 thoughtful questions to ask", "A suggested reply with two meeting times"], "PACK IT UP", next); } },
+      { x: 184, go: "Run the prep brief to Daniel's desk!", prompt: "deliver the brief",
+        act(s, next) { s.carry = false; confetti(); showCard("DELIVERED", ["Daniel reads the brief and writes back himself.", "The reply is logged in the Ledger next to the application."], "CONTINUE", next); } }
+    ],
+    count(s) { return s.i ? "REPLY OPENED" : "1 NEW REPLY"; },
+    draw(s) {
+      room("p", "Y: YIELD");
+      if (s.i === 0) { const b = Math.floor(T / 300) % 2; R(64, 158 + b, 12, 8, "#fff"); R(64, 158 + b, 12, 1, "#99a"); R(69, 161 + b, 3, 3, RED); }
+      danielDesk();
+      const w = this.steps[s.i]; if (w) marker(w.x);
+    }
+  })
+];
+
+/* ---------------- intro cutscene: asleep, alarm, warm up ---------------- */
+function drawIntro() {
+  const t = cut ? cut.t : 0, night = t < 1.6, ring = t >= 1.6 && t < 3, jack = t >= 3 && t < 4.8;
+  room("n", null);
+  R(26, 38, 40, 44, CREAM); R(29, 41, 34, 38, night ? "#141033" : "#7ec8f0"); R(45, 41, 2, 38, CREAM); R(29, 59, 34, 2, CREAM);
+  if (night) { R(52, 46, 6, 6, CREAM); R(34, 50, 1, 1, "#fff"); R(40, 70, 1, 1, "#fff"); } else { R(50, 46, 8, 8, GOLD); }
+  const jx = ring ? (Math.floor(T / 50) % 2 ? 1 : -1) : 0;
+  R(114 + jx, 30, 28, 28, "#5d6474"); R(117 + jx, 33, 22, 22, "#fff"); R(127 + jx, 37, 2, 8, "#111"); R(127 + jx, 43, 7, 2, "#111");
+  tag(night ? "TUE 7:36 AM" : "TUE 7:37 AM", 128, 64, GOLD);
+  if (ring) tag("RING! SCHEDULED RUN", 128, 80, BAD);
+  for (const [k, x, col] of [["monty", 36, "#9db7dd"], ["poppy", 180, "#f0a184"]]) {
+    R(x, 168, 42, 3, "#5a3d2b"); R(x, 171, 3, 5, "#5a3d2b"); R(x + 39, 171, 3, 5, "#5a3d2b"); R(x + 1, 163, 40, 5, "#dde");
+    if (night || ring) { person(k, x + 20, 164, "sleep", 1); R(x + 6, 159, 18, 6, col); }
+    else R(x + 6, 162, 20, 3, col);
+  }
+  if (!night && !ring) { person("monty", 104, FY, jack ? "jack" : "stand", 1); person("poppy", 152, FY, jack ? "jack" : "stand", -1); }
+  if (night) {
+    ctx.fillStyle = "rgba(8,8,30,.5)"; ctx.fillRect(0, 0, W, 184);
+    for (const x of [62, 206]) for (let k = 0; k < 3; k++) { const ph = ((T / 1800) + k / 3) % 1; ctx.globalAlpha = 1 - ph; txt(k === 2 ? "Z" : "z", x + ph * 10, 150 - ph * 24, "#d8f4ff"); ctx.globalAlpha = 1; }
+  }
+}
+function startGame() {
+  done.fill(false); pts.fill(0); stage = null; st = null; si = -1; fx = []; cut = { t: 0, rang: false, said: false }; mode = "cut";
+  $("hZone").textContent = "THE OFFICE"; $("hCount").textContent = "";
+  setPanel("sys", "The office is dark. Monty and Poppy are asleep until the next scheduled run.");
+}
+
+/* ---------------- overlays: title, map, clock, ledger, roadmap, end ---------------- */
+const sumHtml = () => "<h3>MONTY: THE JOB PIPELINE</h3>" + li([
+    "<b>MINE</b>Gathers new analyst postings.", "<b>OMIT</b>Throws out jobs Daniel isn't eligible for.",
+    "<b>NUMBER</b>Scores the rest out of 5. Only 4.0 and up moves on.", "<b>TAILOR</b>Writes a tailored resume and cover letter.",
+    "<b>YIELD</b>Logs it in the Ledger for Daniel to review and submit."]) +
+  "<h3>POPPY: THE RAPPORT BUILDER</h3>" + li([
+    "<b>PROSPECT</b>Finds recruiters and people with real common ground.", "<b>ORGANISE</b>Removes duplicates and weak fits.",
+    "<b>PERSONALISE</b>Drafts a short, warm email for each person.", "<b>PACE</b>Keeps it to about 20 emails a day.",
+    "<b>YIELD</b>Turns each reply into a prep brief."]) +
+  '<p class="small">A cloud schedule runs the checks and backups. Daniel reviews, submits and sends everything himself.</p>';
+function showHow() {
+  ovShow('<div class="dlg box">' + sumHtml() + statsHtml() + '<button type="button" data-p data-act="back">BACK</button></div>', { back() { showTitle(); } });
+}
+function showTitle() {
+  ovShow('<div class="dlg"><h2>MONTY &amp; POPPY</h2><h3 style="color:#f4ecd8">AN AGENTIC JOB SEARCH</h3>' +
+    "<p>Two AI agents. One mission: land a full time analyst role.</p>" +
+    '<p class="small">HIGH SCORE: ' + esc(board[0].n) + " " + pad6(board[0].s) + "</p>" +
+    '<button type="button" data-p data-act="go" class="blink">PRESS START</button>' +
+    '<button type="button" data-act="how" style="background:#9db7dd">HOW IT WORKS IN 30 SECONDS</button>' +
+    '<p class="small">Built by Daniel Lawrence, MS Data Analytics &amp; AI, FGCU. Powered by Claude Code.</p></div>',
+    { go() { initAudio(); ovHide(); startGame(); }, how() { showHow(); } }, true);
+}
+function openMap() {
+  if (mode === "title" || mode === "cut" || (mode === "ov" && prev === "title")) return;
+  const names = ["M MINE", "O OMIT", "N NUMBER", "T TAILOR", "Y YIELD", "P PROSPECT", "O ORGANISE", "P PERSONALISE", "P PACE", "Y YIELD"];
+  const b = (i, z) => '<button type="button" class="' + (done[i] ? "ok" : z) + '" data-act="go" data-i="' + i + '">' + names[i] + (done[i] ? " OK" : "") + "</button>";
+  ovShow('<div class="dlg"><h3 style="color:#e8b84a">OFFICE MAP</h3><div class="mapgrid">' +
+    '<div class="maprow"><span>MONTY\'S MANOR: THE JOB PIPELINE</span>' + [0, 1, 2, 3, 4].map(i => b(i, "m")).join("") + "</div>" +
+    '<div class="maprow"><button type="button" data-act="clock">CLOCK TOWER</button><button type="button" data-act="ledger">LEDGER HALL</button><button type="button" data-act="road">COMING SOON</button></div>' +
+    '<div class="maprow"><span>POPPY\'S POST OFFICE: THE RAPPORT BUILDER</span>' + [5, 6, 7, 8, 9].map(i => b(i, "p")).join("") + "</div>" +
+    '</div><button type="button" data-p data-act="back">BACK TO THE GAME</button></div>',
+    { go(el) { ovHide(); startStage(+el.dataset.i); }, back() { ovHide(); }, clock() { showClock(); }, ledger() { showLedger(); }, road() { showRoad(); } });
+}
+function showClock(cb) {
+  sfx.church();
+  ovShow('<div class="dlg box"><h3>THE CLOCK TOWER</h3><p>These run automatically in the cloud.</p>' + li([
+    "<b>EVERY EVENING, 6 PM ET</b>Inbox check. Scans Gmail for employer responses and updates a backup tracker.",
+    "<b>EVERY 3 DAYS, 10 AM ET</b>Email Checker. Reads employer replies, classifies each one (Interview, Rejected, Offer, Visa issue), updates the matching Ledger row, flags interviews and offers ACTION NEEDED, saves the change to GitHub, and drafts a Job Search Update email for Daniel.",
+    "<b>TUESDAYS AND THURSDAYS, 7:37 AM ET</b>Outreach pipeline. Finds new jobs from the past week, removes ineligible ones, finds people with common ground, drafts about 5 outreach emails, writes prep briefs for replies, and reports back with job links.",
+    "<b>NIGHTLY, 11:50 PM ET, AND WHEN A SESSION ENDS</b>A backup of everything, with version control, to a private GitHub repository."
+  ]) + '<p class="small">The tower never sends emails or submits applications. Summaries and outreach arrive as drafts for Daniel.</p>' +
+    '<button type="button" data-p data-act="ok">' + (cb ? "ON TO POPPY" : "CLOSE") + "</button></div>", { ok() { ovHide(); if (cb) cb(); } });
+}
+const statsHtml = () => '<div class="stats"><div><b>' + STATS.screened + "</b>postings screened</div><div><b>" + STATS.evals + "</b>in depth evaluations</div><div><b>" + STATS.apps + "</b>applications</div><div><b>" + STATS.interviews + "</b>interviews</div></div>";
+function showLedger() {
+  ovShow('<div class="dlg box"><h3>LEDGER HALL</h3>' + statsHtml() + li([
+    "The real dashboard is a live web page called Pipeline Ledger.",
+    "Stats bar: Tracked, Active, Interviews, Offers, Average score, Average H-1B score.",
+    "A Needs action panel shows anything flagged for follow up.",
+    "Filters: All, Active, Interview, Offer, Rejected, Discarded.",
+    "Each row shows status, company, role, score, international hiring score and location, with a Report button for the full evaluation.",
+    "Statuses: Evaluated, Applied, Responded, Interview, Offer. Or Rejected, or Discarded."
+  ]) + '<p class="small">Example row: APPLIED, Company A, Financial Analyst, 4.2, PROVEN. Real names are never shown here.</p><button type="button" data-p data-act="ok">CLOSE</button></div>', { ok() { ovHide(); } });
+}
+function showRoad() {
+  ovShow('<div class="dlg box"><h3>ROADMAP ROOM: COMING SOON</h3>' + li([
+    "<b>FULL AUTONOMY, HUMAN IN THE LOOP</b>The agents handle everything end to end. Daniel only reviews and submits.",
+    "<b>TOKEN EFFICIENCY</b>Cheap deterministic filters run before any AI model call. Context is cached between runs. Simple tasks go to lighter models so the powerful ones only handle real reasoning.",
+    "<b>SHAREABLE VERSION</b>A ready to use copy, so others don't have to set it up from scratch."
+  ]) + '<button type="button" data-p data-act="ok">CLOSE</button></div>', { ok() { ovHide(); } });
+}
+let board = [];
+const esc = t => String(t).replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";");
+function loadBoard() {
+  try { board = JSON.parse(localStorage.getItem("mp_scores") || "null") || []; } catch (e) { board = []; }
+  if (!Array.isArray(board) || !board.length) board = [{ n: "MONTY", s: 9000 }, { n: "POPPY", s: 8000 }];
+}
+function showEnd() {
+  confetti(); sfx.win();
+  ovShow('<div class="dlg box"><h3>THE WHOLE PIPELINE</h3>' + sumHtml() + '<button type="button" data-p data-act="ok">SEE MY SCORE</button></div>', { ok() { showNameForm(); } });
+}
+function showNameForm() {
+  ovShow('<form class="dlg" id="nameForm"><h2>MISSION STATUS: IN PROGRESS</h2>' + statsHtml() +
+    "<p>" + STATS.apps + " applications. " + STATS.interviews + " interviews. Hiring? Let's talk.</p>" +
+    '<h3 style="color:#e8b84a">YOUR SCORE ' + pad6(total()) + "</h3>" +
+    '<label for="nm" class="small">ENTER YOUR NAME</label><input id="nm" name="nm" maxlength="10" autocomplete="off" data-p>' +
+    '<button type="submit">SAVE SCORE</button></form>', {});
+}
+ov.addEventListener("submit", e => {
+  e.preventDefault();
+  const el = $("nm"); if (!el) return;
+  showBoard((el.value || "").trim().toUpperCase().slice(0, 10) || "PLAYER", total());
+});
+function showBoard(name, sc) {
+  board.push({ n: name, s: sc, me: true }); board.sort((a, b) => b.s - a.s); board = board.slice(0, 8);
+  const rows = board.map((r, i) => '<li class="' + (r.me ? "me" : "") + '"><span>' + (i + 1) + ". " + esc(r.n) + "</span><span>" + pad6(r.s) + "</span></li>").join("");
+  board.forEach(r => delete r.me);
+  try { localStorage.setItem("mp_scores", JSON.stringify(board)); } catch (e) {}
+  ovShow('<div class="dlg"><h3 style="color:#e8b84a">HIGH SCORES</h3><ol class="hs">' + rows + "</ol>" +
+    "<p>Nice run, " + esc(name) + "! You scored " + pad6(sc) + ". Post your score in the comments on Daniel's LinkedIn, and connect while you're there.</p>" +
+    '<a class="btn" data-p href="' + LINKEDIN + '" target="_blank" rel="noopener">CONNECT ON LINKEDIN</a>' +
+    '<p class="small">linkedin.com/in/danielglaw</p>' +
+    '<button type="button" data-act="again">PLAY AGAIN</button>' +
+    '<p class="small">MONTY &amp; POPPY were designed and built by Daniel Lawrence using Claude Code, on top of the open source Career-Ops framework. Stats as of November 13, 2026.</p></div>',
+    { again() { ovHide(); stage = null; st = null; cut = null; si = -1; fx = []; pts.fill(0); done.fill(false); mode = "title"; $("hZone").textContent = "THE OFFICE"; $("hCount").textContent = ""; showTitle(); } });
+}
+
+/* ---------------- input ---------------- */
+function dirPress(d) { if (mode === "play" && stage && st && !st.fin && stage.onDir) stage.onDir(st, d); }
+function pressA() {
+  if (mode === "ov") { const p = ov.querySelector("[data-p]"); if (p) p.click(); return; }
+  if (mode === "dialog") { if (dN < dFull.length) dN = dFull.length; else { sfx.blip(); nextLine(); } return; }
+  if (mode === "play" && stage) stage.onA(st);
+}
+function pressB() { if (mode === "ov") { if (ovActs.back) ovActs.back(); else if (ovActs.ok && prev !== "title") ovActs.ok(); } else openMap(); }
+addEventListener("keydown", e => {
+  const k = e.key.toLowerCase(), onCtl = e.target.closest && e.target.closest("button,a");
+  if (e.target.tagName === "INPUT") return;
+  if (k === "arrowleft" || k === "a") { keys.l = true; if (mode !== "ov") { e.preventDefault(); if (!e.repeat) dirPress(-1); } }
+  else if (k === "arrowright" || k === "d") { keys.r = true; if (mode !== "ov") { e.preventDefault(); if (!e.repeat) dirPress(1); } }
+  else if (k === "arrowup" || k === "w") { if (mode !== "ov") { e.preventDefault(); if (stage && stage.grid) dirPress(-3); } }
+  else if (k === "arrowdown" || k === "s") { if (mode !== "ov") { e.preventDefault(); if (stage && stage.grid) dirPress(3); } }
+  else if (k === " " || k === "enter") { if (mode === "ov" || onCtl) return; e.preventDefault(); if (!e.repeat) pressA(); }
+  else if (k === "escape") { e.preventDefault(); pressB(); }
+});
+addEventListener("keyup", e => { const k = e.key.toLowerCase(); if (k === "arrowleft" || k === "a") keys.l = false; if (k === "arrowright" || k === "d") keys.r = false; });
+addEventListener("blur", () => { keys.l = keys.r = false; });
+function hold(id, key) {
+  const el = $(id), on = e => { e.preventDefault(); keys[key] = true; dirPress(key === "l" ? -1 : 1); }, off = () => { keys[key] = false; };
+  el.addEventListener("pointerdown", on); ["pointerup", "pointerleave", "pointercancel"].forEach(n => el.addEventListener(n, off));
+}
+hold("kL", "l"); hold("kR", "r");
+function pt(e, down) {
+  if (mode !== "play" || !stage || !st || st.fin || !stage.onPoint) return;
+  const r = cv.getBoundingClientRect();
+  stage.onPoint(st, (e.clientX - r.left) / r.width * 256, (e.clientY - r.top) / r.height * 184, down);
+}
+cv.addEventListener("pointerdown", e => pt(e, true));
+cv.addEventListener("pointermove", e => { if (e.buttons || e.pointerType === "touch") pt(e, false); });
+$("kA").addEventListener("pointerdown", e => { e.preventDefault(); pressA(); });
+$("kB").addEventListener("pointerdown", e => { e.preventDefault(); pressB(); });
+$("kA").addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); pressA(); } });
+$("kB").addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); pressB(); } });
+$("bMap").addEventListener("click", e => { e.currentTarget.blur(); if (mode === "ov") { if (ovActs.back) ovActs.back(); } else openMap(); });
+$("bSnd").addEventListener("click", e => { soundOn = !soundOn; if (master) master.gain.value = soundOn ? 1 : 0; e.currentTarget.textContent = soundOn ? "SOUND ON" : "SOUND OFF"; e.currentTarget.blur(); });
+
+/* ---------------- pipeline strip ---------------- */
+const WORDS = ["MINE", "OMIT", "NUMBER", "TAILOR", "YIELD", "PROSPECT", "ORGANISE", "PERSONALISE", "PACE", "YIELD"];
+let stripSig = "";
+function updStrip() {
+  const sig = si + "|" + done.join("");
+  if (sig === stripSig) return; stripSig = sig;
+  $("strip").innerHTML = WORDS.map((w, i) => '<span class="chip' + (i === 5 ? " gap" : "") + (i === si && stage ? " now" : done[i] ? " done" : "") + '">' + w[0] + "<small>" + w + "</small></span>").join("");
+}
+
+/* ---------------- main loop ---------------- */
+function update(dt) {
+  P.act = Math.max(0, P.act - dt); shake = Math.max(0, shake - dt);
+  if (mode === "cut" && cut) {
+    cut.t += dt;
+    if (cut.t >= 1.6 && !cut.rang) { cut.rang = true; sfx.church(); setPanel("sys", "7:37 AM. The alarm rings. A scheduled run begins."); }
+    if (cut.t >= 3 && cut.t < 4.8) setPanel("sys", "Lights on. A quick warm up before the shift.");
+    if (cut.t >= 4.8 && !cut.said) {
+      cut.said = true;
+      talk([["monty", "Right then. Let's see what's on offer today."], ["poppy", "You hunt jobs. I'll find people."],
+            ["sys", "Arrows to move. A to act. You get 3 hearts per room. Go!"]], () => startStage(0));
+    }
+  }
+  if (mode === "dialog") {
+    if (dN < dFull.length) dN = Math.min(dFull.length, dN + dt * 60);
+    setPanel(pan.who, dFull.slice(0, Math.floor(dN))); $("pMore").hidden = dN < dFull.length;
+  }
+  if (mode === "play" && stage && st) {
+    if (stage.move) { const d = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); P.walk = d !== 0; if (d) { P.dir = d; P.x = clamp(P.x + d * 85 * dt, stage.min, stage.max); } }
+    else P.walk = false;
+    stage.update(dt, st);
+    if (mode === "play" && !st.fin && st.time != null && !stage.ownTimer) { st.time -= dt; if (st.time <= 0) { st.time = 0; fail("Out of time."); } }
+    if (mode === "play") setPanel("sys", stage.cap(st));
+    $("hCount").textContent = stage.count ? stage.count(st) : "";
+  } else P.walk = false;
+  $("hScore").textContent = "SCORE " + pad6(total()); updStrip();
+  for (const p of fx) { p.life -= dt; if (p.t === "p") { p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; } else p.y -= 14 * dt; }
+  fx = fx.filter(p => p.life > 0);
+}
+function draw() {
+  ctx.save();
+  if (shake > 0 && !RM) ctx.translate(Math.round((Math.random() - .5) * 4), Math.round((Math.random() - .5) * 3));
+  if (!stage) drawIntro();
+  else {
+    stage.draw(st);
+    const pose = (typeof stage.pose === 'function' && stage.pose(st)) || (P.walk ? "walk" : "stand");
+    if (!stage.noPlayer) person(P.k, P.x, FY, pose, P.dir, stage.anim ? stage.anim(st) : 0);
+    if (stage.front) stage.front(st);
+    for (let i = 0; i < 3; i++) {
+      const x = 221 + i * 11, c = i < st.hp ? "#e8402a" : "#555a70";
+      R(x - 1, 4, 9, 10, DARK); R(x, 6, 3, 2, c); R(x + 4, 6, 3, 2, c); R(x, 7, 7, 3, c); R(x + 1, 10, 5, 1, c); R(x + 2, 11, 3, 1, c); R(x + 3, 12, 1, 1, c);
+    }
+    if (st.time != null) tag("TIME " + Math.ceil(st.time), 228, 18, st.time < 8 ? BAD : CREAM);
+  }
+  for (const p of fx) { if (p.t === "p") R(p.x, p.y, p.w, p.h, p.c); else tag(p.s, p.x, p.y, p.c); }
+  ctx.restore();
+}
+let last = performance.now();
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; T = now; update(dt); draw(); requestAnimationFrame(frame); }
+mainCtx.imageSmoothingEnabled = false;
+setPanel("sys", "The office is dark. Monty and Poppy are asleep until the next scheduled run.");
+loadBoard();
+showTitle();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
